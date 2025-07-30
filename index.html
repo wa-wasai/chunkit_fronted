@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!-- 声明文档类型为HTML5 -->
+<html lang="zh-CN">
+<!-- 设置页面语言为简体中文 -->
+<head>
+    <!-- 页面头部信息开始 -->
+    <meta charset="UTF-8">
+    <!-- 设置字符编码为UTF-8，支持中文显示 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 设置视口，使页面在移动设备上正确显示 -->
+    <title>知识生活问答 - 智能助手</title>
+    <!-- 设置浏览器标签页标题 -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- 引入外部CSS样式文件 -->
+</head>
+<body>
+    <!-- 页面主体内容开始 -->
+    
+    <!-- 背景动画效果容器 -->
+    <!-- 这个div包含了所有的下落动画元素，创造动态背景效果 -->
+    <div class="falling-background">
+        <!-- 下落的SVG图标元素，每个都有falling-item类用于CSS动画 -->
+        <img src="assets/images/007-gin tonic.svg" class="falling-item" alt="饮品图标1">
+        <img src="assets/images/014-mojito.svg" class="falling-item" alt="饮品图标2">
+        <img src="assets/images/042-milkshake.svg" class="falling-item" alt="饮品图标3">
+        <img src="assets/images/044-whiskey sour.svg" class="falling-item" alt="饮品图标4">
+        <img src="assets/images/050-lemon juice.svg" class="falling-item" alt="饮品图标5">
+        <!-- 重复的图标用于增加动画密度 -->
+        <img src="assets/images/007-gin tonic.svg" class="falling-item" alt="饮品图标6">
+        <img src="assets/images/014-mojito.svg" class="falling-item" alt="饮品图标7">
+        <img src="assets/images/042-milkshake.svg" class="falling-item" alt="饮品图标8">
+        <img src="assets/images/044-whiskey sour.svg" class="falling-item" alt="饮品图标9">
+        <img src="assets/images/050-lemon juice.svg" class="falling-item" alt="饮品图标10">
+    </div>
+
+    <!-- 左侧导航栏 -->
+    <!-- 固定在页面左侧的导航栏，包含用户信息和功能按钮 -->
+    <div class="sidebar">
+        <!-- 用户头像和信息区域 -->
+        <!-- 显示当前用户的头像、用户名和邮箱信息 -->
+        <div class="user-profile">
+            <!-- 用户头像容器，通过CSS背景图片显示头像 -->
+            <div class="avatar"></div>
+            <!-- 用户文字信息容器 -->
+            <div class="user-info">
+                <!-- 用户名，使用h3标签表示重要性 -->
+                <h3>Chunkit</h3>
+                <!-- 用户邮箱，使用p标签显示 -->
+                <p>66666@scau</p>
+            </div>
+        </div>
+
+        <!-- 导航功能按钮区域 -->
+        <!-- 包含新对话和历史记录等功能按钮 -->
+        <div class="nav-buttons">
+            <!-- 新对话按钮 -->
+            <!-- 点击后调用startNewConversation()函数开始新的对话 -->
+            <a href="#" class="nav-button" onclick="startNewConversation()">
+                <!-- SVG图标：加号图标表示新建 -->
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                <!-- 按钮文字说明 -->
+                <span>新对话</span>
+            </a>
+            <!-- 历史记录按钮 -->
+            <!-- 点击后调用showHistory()函数显示历史对话记录 -->
+            <a href="#" class="nav-button" onclick="showHistory()">
+                <!-- SVG图标：文档图标表示历史记录 -->
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M3 3h18v18H3zM9 9h6M9 15h6"/>
+                </svg>
+                <!-- 按钮文字说明 -->
+                <span>历史记录</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <!-- 页面的主要内容区域，位于左侧导航栏右边，包含标题和对话内容 -->
+    <div class="main-content">
+        <!-- 页面标题区域 -->
+        <!-- 显示平台名称和描述，具有毛玻璃效果的固定头部 -->
+        <div class="page-header">
+            <!-- 主标题：平台名称 -->
+            <h1 class="page-title">Multi-Agent问答平台</h1>
+            <!-- 副标题：平台描述和理念 -->
+            <p class="page-subtitle">众星汇智，织就问答的光；每一次叩问，都遇见通透的方向</p>
+        </div>
+
+        <!-- 问答对话内容显示区域 -->
+        <!-- 这里会动态显示用户问题和AI回答，通过JavaScript控制内容 -->
+        <div class="qa-container" id="qaContainer">
+            <!-- 动态问答内容将通过JavaScript在这里显示 -->
+            <!-- 包括用户消息、AI回复、加载状态等 -->
+        </div>
+    </div>
+
+    <!-- 用户输入区域 -->
+    <!-- 固定在页面底部的输入框和功能按钮 -->
+    <div class="input-section">
+        <!-- 文本输入框 -->
+        <!-- 用户在这里输入问题，支持回车键发送 -->
+        <input type="text" class="input-field" placeholder="输入问题，一起来交流吧~" id="messageInput">
+        
+        <!-- 隐藏的文件上传输入框 -->
+        <!-- 通过JavaScript触发，支持多种文件格式上传 -->
+        <input type="file" id="fileInput" style="display: none;" accept=".txt,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif">
+        
+        <!-- 功能按钮容器 -->
+        <!-- 包含文件上传和发送消息按钮 -->
+        <div class="button-container">
+            <!-- 文件上传按钮 -->
+            <!-- 点击后触发文件选择对话框 -->
+            <button class="upload-button" onclick="triggerFileUpload()">
+                <!-- SVG图标：上传箭头图标 -->
+                <svg class="upload-icon" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+            </button>
+            <!-- 发送消息按钮 -->
+            <!-- 点击后发送用户输入的消息 -->
+            <button class="send-button" onclick="sendMessage()">
+                <!-- SVG图标：发送箭头图标 -->
+                <svg class="send-icon" viewBox="0 0 24 24">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 引入JavaScript文件 -->
+    <!-- 包含所有的交互逻辑和功能实现 -->
+    <script src="script.js"></script>
+</body>
+<!-- 页面主体内容结束 -->
+</html>
+<!-- HTML文档结束 -->
