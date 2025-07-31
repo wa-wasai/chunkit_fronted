@@ -171,7 +171,7 @@ async function sendMessage() {
     addMessageToUI('user', message);
     
     try {
-        // 调用SSE流式API获取AI响应
+        // 调用多智能体流式API获取AI响应
         await streamChatResponse(message);
     } catch (error) {
         // 错误处理：记录错误并向用户显示友好的错误信息
@@ -181,12 +181,15 @@ async function sendMessage() {
 }
 
 /**
- * 使用SSE流式接收AI响应
+ * 使用SSE流式接收AI响应（多智能体模式）
  * 通过Server-Sent Events (SSE) 技术实现流式响应
  * 允许AI回复以流的形式逐步显示，提供更好的用户体验
  * @param {string} message - 用户发送的消息内容
  */
 async function streamChatResponse(message) {
+    // 使用多智能体流式聊天API端点
+    const endpoint = '/api/chat/stream';
+    
     // 构建请求体，包含用户消息
     const requestBody = {
         message: message  // 用户输入的消息内容
@@ -198,7 +201,7 @@ async function streamChatResponse(message) {
     }
     
     // 发送POST请求到流式聊天API端点
-    const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',                          // 使用POST方法
         headers: {
             'Content-Type': 'application/json'   // 设置请求内容类型为JSON
@@ -215,13 +218,21 @@ async function streamChatResponse(message) {
     const reader = response.body.getReader();  // 用于读取流式数据
     const decoder = new TextDecoder();         // 用于将字节流解码为文本
     let aiMessageElement = null;  // 用于存储AI消息的DOM元素引用
+    let aiCompleteMessage = '';   // 用于累积完整的AI回答内容
     
     try {
         // 持续读取流式数据直到完成
         while (true) {
             // 从流中读取数据块
             const { done, value } = await reader.read();
-            if (done) break;  // 如果读取完成，退出循环
+            if (done) {
+                // 流式传输完成，将完整的AI回答保存到历史记录
+                if (aiCompleteMessage.trim()) {
+                    conversationHistory.addMessage('ai', aiCompleteMessage.trim());
+                    console.log('AI完整回答已保存到历史记录');
+                }
+                break;  // 退出循环
+            }
             
             // 将字节数据解码为文本
             const chunk = decoder.decode(value);
@@ -237,6 +248,11 @@ async function streamChatResponse(message) {
                     
                     // 检查是否是结束标志
                     if (data === '[DONE]') {
+                        // 流式传输完成，将完整的AI回答保存到历史记录
+                        if (aiCompleteMessage.trim()) {
+                            conversationHistory.addMessage('ai', aiCompleteMessage.trim());
+                            console.log('AI完整回答已保存到历史记录');
+                        }
                         return;  // 流式传输完成，退出函数
                     }
                     
@@ -248,29 +264,61 @@ async function streamChatResponse(message) {
                         switch (parsed.type) {
                             case 'session_id':
                                 // 接收并保存会话ID，用于后续请求
-                                sessionId = parsed.session_id;
+                                sessionId = parsed.session_id || parsed.data;
+                                console.log('会话ID已更新 (Multi-Agent 模式):', sessionId);
+                                break;
+                            case 'user_message':
+                                // 用户消息确认，可用于验证消息是否正确接收
+                                console.log('用户消息已确认:', parsed.content || parsed.data);
+                                break;
+                            case 'intent':
+                                // 意图识别结果，显示AI对用户意图的理解
+                                if (parsed.content || parsed.data) {
+                                    console.log('意图识别结果:', parsed.content || parsed.data);
+                                    // 可选：在界面上显示意图识别结果
+                                    // addMessageToUI('intent', `意图识别: ${parsed.content || parsed.data}`, false);
+                                }
                                 break;
                             case 'ai_start':
-                                // AI开始回复，创建空的AI消息元素
-                                aiMessageElement = addMessageToUI('ai', '');
+                                // AI开始回复，创建空的AI消息元素（不添加到历史记录）
+                                aiMessageElement = addMessageToUI('ai', '', false);
+                                aiCompleteMessage = '';  // 重置完整消息累积器
+                                console.log('AI开始回复 (Multi-Agent 模式)');
                                 break;
                             case 'ai_chunk':
-                                // 接收AI回复的文本片段，逐步追加到消息元素
-                                if (aiMessageElement) {
-                                    aiMessageElement.textContent += parsed.content;
+                                // 接收AI回复的文本片段，逐步追加到消息元素和完整消息
+                                if (aiMessageElement && (parsed.content || parsed.data)) {
+                                    const chunkContent = parsed.content || parsed.data;
+                                    aiMessageElement.textContent += chunkContent;
+                                    aiCompleteMessage += chunkContent;  // 累积完整消息
+                                }
+                                break;
+                            case 'ai_end':
+                                // AI回复结束，完成消息处理并保存到历史记录
+                                if (aiCompleteMessage.trim()) {
+                                    conversationHistory.addMessage('ai', aiCompleteMessage.trim());
+                                    console.log('AI回复结束，完整回答已保存到历史记录 (Multi-Agent 模式)');
                                 }
                                 break;
                             case 'message':
-                                // 接收完整的AI消息（用于非流式模式）
+                                // 接收完整的AI消息（用于非流式模式或兼容性）
+                                const messageContent = parsed.content || parsed.data;
                                 if (!aiMessageElement) {
-                                    aiMessageElement = addMessageToUI('ai', parsed.content);
+                                    aiMessageElement = addMessageToUI('ai', messageContent, false);
                                 } else {
-                                    aiMessageElement.textContent = parsed.content;
+                                    aiMessageElement.textContent = messageContent;
                                 }
+                                aiCompleteMessage = messageContent;  // 保存完整消息
                                 break;
                             case 'error':
                                 // 接收错误消息并显示给用户
-                                addMessageToUI('error', parsed.content);
+                                const errorContent = parsed.content || parsed.message || parsed.data || '发生未知错误';
+                                addMessageToUI('error', errorContent);
+                                console.error('接收到错误消息:', errorContent);
+                                break;
+                            default:
+                                // 处理未知的消息类型
+                                console.warn('未知的消息类型 (Multi-Agent 模式):', parsed.type, parsed);
                                 break;
                         }
                     } catch (parseError) {
@@ -331,7 +379,7 @@ function addMessageToUI(type, content, addToHistory = true) {
         messageDiv.innerHTML = `
             <div class="message-avatar ai">AI</div>
             <div class="message-content">
-                <div class="message-info">figma助手</div>
+                <div class="message-info">Chunkit</div>
             </div>
         `;
         
@@ -366,27 +414,72 @@ function addMessageToUI(type, content, addToHistory = true) {
 /* ===== 消息内容格式化函数 ===== */
 
 /**
- * 格式化消息内容，处理文件引用和关键词高亮
+ * 初始化markdown渲染器配置
+ * 配置marked.js和highlight.js的选项
+ */
+function initializeMarkdownRenderer() {
+    // 配置marked.js选项
+    marked.setOptions({
+        highlight: function(code, lang) {
+            // 如果指定了语言且highlight.js支持，则进行代码高亮
+            if (lang && hljs.getLanguage(lang)) {
+                try {
+                    return hljs.highlight(code, { language: lang }).value;
+                } catch (err) {
+                    console.warn('代码高亮失败:', err);
+                }
+            }
+            // 否则进行自动检测高亮
+            try {
+                return hljs.highlightAuto(code).value;
+            } catch (err) {
+                console.warn('自动代码高亮失败:', err);
+                return code;
+            }
+        },
+        breaks: true,        // 支持换行符转换为<br>
+        gfm: true,          // 启用GitHub风格的markdown
+        tables: true,       // 支持表格
+        sanitize: false,    // 不清理HTML（需要显示代码高亮）
+        smartypants: true   // 智能标点符号转换
+    });
+}
+
+/**
+ * 格式化消息内容，支持markdown渲染和特殊格式处理
  * 使用正则表达式识别特定模式并添加样式，提升消息的可读性
  * @param {string} content - 原始消息内容
  * @returns {string} 格式化后的HTML内容
  */
 function formatMessageContent(content) {
-    // 处理文件引用格式 (例如: styles.css 105-120)
-    // 匹配"文件名.扩展名 数字-数字"的模式，添加文件图标和特殊样式
-    content = content.replace(
-        /(\w+\.\w+)\s+(\d+-\d+)/g,
-        '<span class="file-reference"><span class="file-icon">📄</span>$1 $2</span>'
-    );
-    
-    // 处理关键词高亮格式 (例如: # styles.css)
-    // 匹配"# 文件名.扩展名"的模式，添加高亮样式
-    content = content.replace(
-        /#\s*(\w+\.\w+)/g,
-        '<span class="keyword-highlight"># $1</span>'
-    );
-    
-    return content;  // 返回处理后的HTML内容
+    try {
+        // 首先进行markdown渲染
+        let htmlContent = marked.parse(content);
+        
+        // 然后处理自定义的文件引用格式 (例如: styles.css 105-120)
+        // 匹配"文件名.扩展名 数字-数字"的模式，添加文件图标和特殊样式
+        htmlContent = htmlContent.replace(
+            /(\w+\.\w+)\s+(\d+-\d+)/g,
+            '<span class="file-reference"><span class="file-icon">📄</span>$1 $2</span>'
+        );
+        
+        // 处理关键词高亮格式 (例如: # styles.css)
+        // 匹配"# 文件名.扩展名"的模式，添加高亮样式
+        htmlContent = htmlContent.replace(
+            /#\s*(\w+\.\w+)/g,
+            '<span class="keyword-highlight"># $1</span>'
+        );
+        
+        return htmlContent;  // 返回处理后的HTML内容
+    } catch (error) {
+        console.error('Markdown渲染失败:', error);
+        // 如果markdown渲染失败，返回原始内容（进行HTML转义）
+        return content.replace(/&/g, '&amp;')
+                     .replace(/</g, '&lt;')
+                     .replace(/>/g, '&gt;')
+                     .replace(/"/g, '&quot;')
+                     .replace(/'/g, '&#39;');
+    }
 }
 
 /* ===== 对话管理函数 ===== */
@@ -596,17 +689,151 @@ function formatTime(timestamp) {
 async function healthCheck() {
     try {
         // 向后端健康检查端点发送请求
-        const response = await fetch(`${API_BASE_URL}/api/health`);
+        const response = await fetch(`${API_BASE_URL}/api/health`, {
+            method: 'GET',
+            timeout: 3000  // 3秒超时
+        });
         if (response.ok) {
             console.log('后端服务正常');  // 服务正常日志
         } else {
-            console.warn('后端服务异常');  // 服务异常警告
+            console.log('后端服务异常，前端独立运行模式');  // 服务异常时的提示
         }
     } catch (error) {
-        // 网络错误或服务不可达
-        console.error('健康检查失败:', error);
+        // 网络错误或服务不可达时，静默处理，不显示错误
+        console.log('前端独立运行模式，后端服务未启动');
     }
 }
+
+/**
+ * 加载用户信息
+ * 从localStorage中读取用户账号信息并更新导航栏显示
+ */
+function loadUserInfo() {
+    try {
+        console.log('开始加载用户信息...');
+        
+        // 确保DOM元素存在
+        const userNameElement = document.getElementById('userName');
+        const userEmailElement = document.getElementById('userEmail');
+        
+        if (!userNameElement || !userEmailElement) {
+            console.warn('DOM元素未完全加载，延迟重试...');
+            setTimeout(loadUserInfo, 200);
+            return;
+        }
+        
+        // 从localStorage中获取当前登录用户账号
+        const currentUser = localStorage.getItem('currentUser');
+        console.log('从localStorage获取的用户信息:', currentUser);
+        
+        if (currentUser) {
+            console.log('找到用户信息，开始更新显示');
+            updateUserDisplay(currentUser);
+        } else {
+            console.log('localStorage中未找到currentUser，使用默认显示');
+            // 检查localStorage中的所有键
+            console.log('localStorage中的所有键:', Object.keys(localStorage));
+            
+            // 为了测试，设置一个默认用户
+            console.log('设置默认测试用户...');
+            const defaultUser = 'TestUser';
+            localStorage.setItem('currentUser', defaultUser);
+            updateUserDisplay(defaultUser);
+        }
+    } catch (error) {
+        console.error('加载用户信息失败:', error);
+    }
+}
+
+/**
+ * 更新用户显示信息
+ * @param {string} username - 用户名
+ */
+function updateUserDisplay(username) {
+    // 更新导航栏中的用户名显示
+    const userNameElement = document.getElementById('userName');
+    const userEmailElement = document.getElementById('userEmail');
+    
+    console.log('用户名元素:', userNameElement);
+    console.log('账号元素:', userEmailElement);
+    
+    if (userNameElement) {
+        userNameElement.textContent = username;
+        // 设置用户名为黄色字体，使用!important确保优先级
+        userNameElement.style.setProperty('color', '#F7FFB2', 'important');
+        console.log('用户名已更新为:', username);
+        console.log('用户名颜色已设置为黄色');
+    } else {
+        console.error('未找到用户名元素 #userName');
+    }
+    
+    // 显示账号（不使用邮箱格式）
+    if (userEmailElement) {
+        userEmailElement.textContent = username;
+        // 设置账号为灰色字体，使用!important确保优先级
+        userEmailElement.style.setProperty('color', '#e2e2e2', 'important');
+        console.log('账号已更新为:', username);
+        console.log('账号颜色已设置为灰色');
+    } else {
+        console.error('未找到账号元素 #userEmail');
+    }
+    
+    console.log('用户信息更新完成:', username);
+}
+
+/**
+ * 测试用户信息功能
+ * 手动测试用户信息更新是否正常工作
+ */
+function testUserInfo() {
+    console.log('=== 开始测试用户信息功能 ===');
+    
+    // 设置测试用户信息
+    const testUser = 'admin';
+    localStorage.setItem('currentUser', testUser);
+    console.log('已设置测试用户:', testUser);
+    
+    // 调用更新函数
+    updateUserDisplay(testUser);
+    
+    // 验证DOM元素
+    const userNameElement = document.getElementById('userName');
+    const userEmailElement = document.getElementById('userEmail');
+    
+    console.log('当前用户名显示:', userNameElement ? userNameElement.textContent : '元素未找到');
+    console.log('当前邮箱显示:', userEmailElement ? userEmailElement.textContent : '元素未找到');
+    
+    alert('测试完成！请查看控制台输出和页面显示效果。');
+}
+
+/**
+ *  * 退出登录功能
+ * 清除用户信息并返回登录页面
+ */
+function logout() {
+    try {
+        console.log('开始退出登录...');
+        
+        // 清除localStorage中的用户信息
+        localStorage.removeItem('currentUser');
+        console.log('已清除用户信息');
+        
+        // 清除当前对话历史（可选）
+        conversationHistory.clearCurrentConversation();
+        console.log('已清除当前对话');
+        
+        // 跳转到登录页面
+        console.log('正在跳转到登录页面...');
+        window.location.href = 'login.html';
+        
+    } catch (error) {
+        console.error('退出登录失败:', error);
+        // 即使出错也尝试跳转
+        window.location.href = 'login.html';
+    }
+}
+
+
 
 /**
  * 页面初始化函数
@@ -614,8 +841,22 @@ async function healthCheck() {
  * 在页面加载完成后调用
  */
 function initializePage() {
+    console.log('页面初始化开始...');
+    
+    // 初始化markdown渲染器
+    initializeMarkdownRenderer();
+    
     // 进行后端服务健康检查
     healthCheck();
+    
+    // 加载并显示当前登录用户信息
+    // 确保DOM已完全加载
+    setTimeout(() => {
+        console.log('延迟加载用户信息...');
+        loadUserInfo();
+    }, 100);
+    
+
     
     // 绑定回车键发送消息功能
     const messageInput = document.getElementById('messageInput');
@@ -627,6 +868,8 @@ function initializePage() {
                 sendMessage();       // 发送消息
             }
         });
+    } else {
+        console.log('未找到消息输入框元素');
     }
     
     // 页面卸载时自动保存当前对话

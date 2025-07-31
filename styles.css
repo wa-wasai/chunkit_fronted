@@ -50,8 +50,8 @@ body {
 /* 用户头像样式 */
 /* 圆形头像，使用SVG图标作为背景 */
 .avatar {
-    width: 40px;         /* 宽度40像素 */
-    height: 40px;        /* 高度40像素 */
+    width: 48px;         /* 宽度48像素，进一步放大头像 */
+    height: 48px;        /* 高度48像素，进一步放大头像 */
     border-radius: 50%;  /* 50%圆角，形成圆形 */
     background: url('assets/images/007-gin tonic.svg') center/cover;  /* 背景图片居中覆盖 */
     background-size: 80%;     /* 背景图片大小为容器的80% */
@@ -62,23 +62,23 @@ body {
 /* 显示用户名的h3标签样式，使用较大字体和高对比度颜色 */
 .user-info h3 {
     color: #F7FFB2;          /* 浅黄色，与背景形成良好对比 */
-    font-size: 18px;         /* 字体大小18像素，突出用户名重要性 */
-    font-weight: 700;        /* 粗体字重，增强视觉重要性 */
-    line-height: 24px;       /* 行高24像素，确保良好的垂直间距 */
-    margin: 0 0 4px 0;       /* 下方4像素外边距，与邮箱分离 */
-    letter-spacing: 0.3px;   /* 字符间距0.3像素，提升可读性 */
+    font-size: 20px;         /* 字体大小20像素，进一步放大用户名 */
+    font-weight: 600;        /* 半粗体字重，调整为规范粗细 */
+    line-height: 26px;       /* 行高26像素，确保良好的垂直间距 */
+    margin: 0 0 5px 0;       /* 下方5像素外边距，与账号分离 */
+    letter-spacing: 0.4px;   /* 字符间距0.4像素，提升可读性 */
 }
 
-/* 用户邮箱样式 */
-/* 显示用户邮箱的p标签样式，使用较小字体和适中对比度 */
+/* 用户账号样式 */
+/* 显示用户账号的p标签样式，使用较小字体和适中对比度 */
 .user-info p {
     color: #e2e2e2;          /* 浅灰色，层次感低于用户名 */
-    font-size: 14px;         /* 字体大小14像素，小于用户名 */
-    font-weight: 500;        /* 中等字重，保持清晰度 */
+    font-size: 16px;         /* 字体大小16像素，进一步放大用户账号 */
+    font-weight: 400;        /* 正常字重，调整为规范粗细 */
     line-height: 20px;       /* 行高20像素，紧凑的垂直间距 */
     margin: 0;               /* 无外边距 */
-    letter-spacing: 0.2px;   /* 字符间距0.2像素，提升可读性 */
-    opacity: 0.9;            /* 90%透明度，创造层次效果 */
+    letter-spacing: 0.3px;   /* 字符间距0.3像素，提升可读性 */
+    opacity: 0.85;           /* 85%透明度，创造层次效果 */
 }
 
 /* ===== 导航按钮区域样式 ===== */
@@ -87,7 +87,7 @@ body {
     margin-top: auto;        /* 自动上边距，将按钮推到底部 */
     display: flex;           /* 弹性布局 */
     flex-direction: column;  /* 垂直排列按钮 */
-    gap: 40px;              /* 按钮间距40像素 */
+    gap: 18px;              /* 按钮间距18像素，进一步缩小间距 */
 }
 
 /* 单个导航按钮样式 */
@@ -95,12 +95,12 @@ body {
 .nav-button {
     display: flex;           /* 弹性布局，水平排列图标和文字 */
     align-items: center;     /* 垂直居中对齐 */
-    gap: 12px;              /* 图标和文字间距12像素 */
+    gap: 8px;               /* 图标和文字间距8像素，进一步缩小间距 */
     color: #FFFFFF;          /* 白色文字，在深色背景上清晰可见 */
-    font-size: 16px;         /* 字体大小16像素 */
-    font-weight: 600;        /* 半粗体字重，保持清晰 */
+    font-size: 13px;         /* 字体大小13像素，进一步缩小字体 */
+    font-weight: 500;        /* 中等字重，调整为规范粗细 */
     text-decoration: none;   /* 移除链接下划线 */
-    padding: 8px 0;          /* 上下内边距8像素，增加点击区域 */
+    padding: 4px 0;          /* 上下内边距4像素，进一步缩小内边距 */
     transition: color 0.3s ease;  /* 颜色变化过渡动画，0.3秒缓动 */
 }
 
@@ -113,10 +113,10 @@ body {
 /* 导航按钮图标样式 */
 /* SVG图标的统一样式设置 */
 .nav-icon {
-    width: 25px;             /* 图标宽度25像素 */
-    height: 25px;            /* 图标高度25像素 */
+    width: 18px;             /* 图标宽度18像素，进一步缩小图标 */
+    height: 18px;            /* 图标高度18像素，进一步缩小图标 */
     stroke: currentColor;    /* 描边颜色继承父元素颜色 */
-    stroke-width: 3px;       /* 描边宽度3像素，确保清晰可见 */
+    stroke-width: 2px;       /* 描边宽度2像素，调整线条粗细 */
     fill: none;              /* 无填充，只显示描边 */
 }
 
@@ -139,8 +139,8 @@ body {
     left: 266px;            /* 左边距266像素，避开侧边栏 */
     right: 0;               /* 贴靠页面右边 */
     background: rgba(255, 255, 255, 0.1);  /* 10%透明度白色背景 */
-    backdrop-filter: blur(15px);           /* 15像素背景模糊效果 */
-    -webkit-backdrop-filter: blur(15px);   /* WebKit浏览器兼容性 */
+    backdrop-filter: blur(8px);            /* 8像素背景模糊效果，降低模糊程度 */
+    -webkit-backdrop-filter: blur(8px);    /* WebKit浏览器兼容性 */
     text-align: center;     /* 文字居中对齐 */
     padding: 20px;          /* 内边距20像素 */
     z-index: 100;           /* 层级100，确保在其他元素之上 */
@@ -594,21 +594,22 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
 }
 
 .history-modal-content {
     position: relative;
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     width: 90%;
     max-width: 600px;
     max-height: 80vh;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
 }
 
 .history-header {
@@ -732,6 +733,152 @@ body {
     transform: translateY(-1px);
 }
 
+/* ===== Markdown渲染样式 ===== */
+/* 标题样式 */
+.message-bubble h1,
+.message-bubble h2,
+.message-bubble h3,
+.message-bubble h4,
+.message-bubble h5,
+.message-bubble h6 {
+    margin: 16px 0 8px 0;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #2c3e50;
+}
+
+.message-bubble h1 { font-size: 24px; border-bottom: 2px solid #3498db; padding-bottom: 8px; }
+.message-bubble h2 { font-size: 20px; border-bottom: 1px solid #bdc3c7; padding-bottom: 6px; }
+.message-bubble h3 { font-size: 18px; }
+.message-bubble h4 { font-size: 16px; }
+.message-bubble h5 { font-size: 14px; }
+.message-bubble h6 { font-size: 13px; color: #7f8c8d; }
+
+/* 段落样式 */
+.message-bubble p {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+
+/* 代码块样式 */
+.message-bubble pre {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 12px 0;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.message-bubble code {
+    background: #f1f3f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #d73a49;
+}
+
+.message-bubble pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+}
+
+/* 引用块样式 */
+.message-bubble blockquote {
+    border-left: 4px solid #3498db;
+    margin: 12px 0;
+    padding: 8px 16px;
+    background: rgba(52, 152, 219, 0.05);
+    font-style: italic;
+    color: #555;
+}
+
+/* 列表样式 */
+.message-bubble ul,
+.message-bubble ol {
+    margin: 8px 0;
+    padding-left: 24px;
+}
+
+.message-bubble li {
+    margin: 4px 0;
+    line-height: 1.5;
+}
+
+/* 表格样式 */
+.message-bubble table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    font-size: 14px;
+}
+
+.message-bubble th,
+.message-bubble td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.message-bubble th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.message-bubble tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+/* 链接样式 */
+.message-bubble a {
+    color: #3498db;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.message-bubble a:hover {
+    color: #2980b9;
+    border-bottom-color: #2980b9;
+}
+
+/* 分割线样式 */
+.message-bubble hr {
+    border: none;
+    height: 1px;
+    background: #e1e4e8;
+    margin: 16px 0;
+}
+
+/* 强调文本样式 */
+.message-bubble strong {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.message-bubble em {
+    font-style: italic;
+    color: #555;
+}
+
+/* 删除线样式 */
+.message-bubble del {
+    text-decoration: line-through;
+    color: #999;
+}
+
+/* 代码高亮主题调整 */
+.message-bubble .hljs {
+    background: #f8f9fa !important;
+    color: #24292e !important;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .history-modal-content {
@@ -748,5 +895,20 @@ body {
     .history-actions {
         width: 100%;
         justify-content: flex-end;
+    }
+    
+    /* 移动端markdown样式调整 */
+    .message-bubble pre {
+        padding: 12px;
+        font-size: 12px;
+    }
+    
+    .message-bubble table {
+        font-size: 12px;
+    }
+    
+    .message-bubble th,
+    .message-bubble td {
+        padding: 6px 8px;
     }
 }

@@ -10,8 +10,14 @@
     <!-- 设置视口，使页面在移动设备上正确显示 -->
     <title>知识生活问答 - 智能助手</title>
     <!-- 设置浏览器标签页标题 -->
-    <link rel="stylesheet" href="styles.css">
-    <!-- 引入外部CSS样式文件 -->
+    <link rel="stylesheet" href="styles.css?v=1.7">
+    <!-- 引入外部CSS样式文件，添加版本参数强制刷新缓存 -->
+    
+    <!-- 引入marked.js库用于markdown渲染 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <!-- 引入highlight.js用于代码高亮 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/highlight.min.js"></script>
 </head>
 <body>
     <!-- 页面主体内容开始 -->
@@ -43,10 +49,10 @@
             <div class="avatar"></div>
             <!-- 用户文字信息容器 -->
             <div class="user-info">
-                <!-- 用户名，使用h3标签表示重要性 -->
-                <h3>Chunkit</h3>
-                <!-- 用户邮箱，使用p标签显示 -->
-                <p>66666@scau</p>
+                <!-- 用户名，使用h3标签表示重要性，黄色字体显示 -->
+                <h3 class="user-name" id="userName">Chunkit</h3>
+                <!-- 用户账号，使用p标签显示，灰色字体显示 -->
+                <p class="user-account" id="userEmail">66666@scau</p>
             </div>
         </div>
 
@@ -72,6 +78,16 @@
                 </svg>
                 <!-- 按钮文字说明 -->
                 <span>历史记录</span>
+            </a>
+            <!-- 退出登录按钮 -->
+            <!-- 点击后调用logout()函数返回登录界面 -->
+            <a href="#" class="nav-button" onclick="logout()">
+                <!-- SVG图标：退出图标表示登出 -->
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+                </svg>
+                <!-- 按钮文字说明 -->
+                <span>退出登录</span>
             </a>
         </div>
     </div>
@@ -99,6 +115,7 @@
     <!-- 用户输入区域 -->
     <!-- 固定在页面底部的输入框和功能按钮 -->
     <div class="input-section">
+
         <!-- 文本输入框 -->
         <!-- 用户在这里输入问题，支持回车键发送 -->
         <input type="text" class="input-field" placeholder="输入问题，一起来交流吧~" id="messageInput">
