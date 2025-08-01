@@ -62,9 +62,13 @@ pip install -r requirements.txt
 1. Install Qwen3-embedding-0.6B and put it at the same level as *RAGlibrary.py*，[点此下载](https://modelscope.cn/models/Qwen/Qwen3-Embedding-0.6B)
 
 
-### 启动FastAPI服务器
-1. python .\fastapi_server_stream_only.py
+### <font color="grenn">启动FastAPI服务器</font>
+```bash
+python .\fastapi_server_stream_only.py
+```
 
+### <font color="red">使用Python内置服务器</font>
+```bash
+python -m http.server 8080
+```
 
-### 使用Python内置服务器
-1. python -m http.server 8080
