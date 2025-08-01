@@ -181,57 +181,50 @@ async function sendMessage() {
 }
 
 /**
- * 使用SSE流式接收AI响应（多智能体模式）
+ * 使用SSE流式接收AI响应
  * 通过Server-Sent Events (SSE) 技术实现流式响应
- * 允许AI回复以流的形式逐步显示，提供更好的用户体验
  * @param {string} message - 用户发送的消息内容
  */
 async function streamChatResponse(message) {
-    // 使用多智能体流式聊天API端点
-    const endpoint = '/api/chat/stream';
+    // 修复：使用正确的端点 /query 而不是 /api/chat/stream
+    const endpoint = '/query';
     
-    // 构建请求体，包含用户消息
+    // 构建符合后端期望的请求体格式
     const requestBody = {
-        message: message  // 用户输入的消息内容
+        query: message  // 后端期望的字段名是 'query' 而不是 'message'
     };
-    
-    // 如果存在会话ID，则添加到请求体中（用于维持对话上下文）
-    if (sessionId) {
-        requestBody.session_id = sessionId;
-    }
     
     // 发送POST请求到流式聊天API端点
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',                          // 使用POST方法
+        method: 'POST',
         headers: {
-            'Content-Type': 'application/json'   // 设置请求内容类型为JSON
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestBody)        // 将请求体转换为JSON字符串
+        body: JSON.stringify(requestBody)
     });
     
-    // 检查HTTP响应状态，如果不成功则抛出错误
+    // 检查HTTP响应状态
     if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
     // 获取响应流的读取器和文本解码器
-    const reader = response.body.getReader();  // 用于读取流式数据
-    const decoder = new TextDecoder();         // 用于将字节流解码为文本
-    let aiMessageElement = null;  // 用于存储AI消息的DOM元素引用
-    let aiCompleteMessage = '';   // 用于累积完整的AI回答内容
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let aiMessageElement = null;
+    let aiCompleteMessage = '';
     
     try {
         // 持续读取流式数据直到完成
         while (true) {
-            // 从流中读取数据块
             const { done, value } = await reader.read();
             if (done) {
-                // 流式传输完成，将完整的AI回答保存到历史记录
+                // 流式传输完成，保存完整的AI回答到历史记录
                 if (aiCompleteMessage.trim()) {
                     conversationHistory.addMessage('ai', aiCompleteMessage.trim());
                     console.log('AI完整回答已保存到历史记录');
                 }
-                break;  // 退出循环
+                break;
             }
             
             // 将字节数据解码为文本
@@ -244,92 +237,55 @@ async function streamChatResponse(message) {
                 // 检查是否是SSE数据行（以'data: '开头）
                 if (line.startsWith('data: ')) {
                     // 提取实际的数据内容（去掉'data: '前缀）
-                    const data = line.slice(6);
+                    const data = line.slice(6).trim();
                     
-                    // 检查是否是结束标志
-                    if (data === '[DONE]') {
-                        // 流式传输完成，将完整的AI回答保存到历史记录
-                        if (aiCompleteMessage.trim()) {
-                            conversationHistory.addMessage('ai', aiCompleteMessage.trim());
-                            console.log('AI完整回答已保存到历史记录');
-                        }
-                        return;  // 流式传输完成，退出函数
-                    }
+                    // 跳过空行
+                    if (!data) continue;
                     
                     try {
                         // 解析JSON数据
                         const parsed = JSON.parse(data);
                         
-                        // 根据消息类型进行不同的处理
-                        switch (parsed.type) {
-                            case 'session_id':
-                                // 接收并保存会话ID，用于后续请求
-                                sessionId = parsed.session_id || parsed.data;
-                                console.log('会话ID已更新 (Multi-Agent 模式):', sessionId);
-                                break;
-                            case 'user_message':
-                                // 用户消息确认，可用于验证消息是否正确接收
-                                console.log('用户消息已确认:', parsed.content || parsed.data);
-                                break;
-                            case 'intent':
-                                // 意图识别结果，显示AI对用户意图的理解
-                                if (parsed.content || parsed.data) {
-                                    console.log('意图识别结果:', parsed.content || parsed.data);
-                                    // 可选：在界面上显示意图识别结果
-                                    // addMessageToUI('intent', `意图识别: ${parsed.content || parsed.data}`, false);
-                                }
-                                break;
-                            case 'ai_start':
-                                // AI开始回复，创建空的AI消息元素（不添加到历史记录）
-                                aiMessageElement = addMessageToUI('ai', '', false);
-                                aiCompleteMessage = '';  // 重置完整消息累积器
-                                console.log('AI开始回复 (Multi-Agent 模式)');
-                                break;
-                            case 'ai_chunk':
-                                // 接收AI回复的文本片段，逐步追加到消息元素和完整消息
-                                if (aiMessageElement && (parsed.content || parsed.data)) {
-                                    const chunkContent = parsed.content || parsed.data;
-                                    aiMessageElement.textContent += chunkContent;
-                                    aiCompleteMessage += chunkContent;  // 累积完整消息
-                                }
-                                break;
-                            case 'ai_end':
-                                // AI回复结束，完成消息处理并保存到历史记录
-                                if (aiCompleteMessage.trim()) {
-                                    conversationHistory.addMessage('ai', aiCompleteMessage.trim());
-                                    console.log('AI回复结束，完整回答已保存到历史记录 (Multi-Agent 模式)');
-                                }
-                                break;
-                            case 'message':
-                                // 接收完整的AI消息（用于非流式模式或兼容性）
-                                const messageContent = parsed.content || parsed.data;
-                                if (!aiMessageElement) {
-                                    aiMessageElement = addMessageToUI('ai', messageContent, false);
-                                } else {
-                                    aiMessageElement.textContent = messageContent;
-                                }
-                                aiCompleteMessage = messageContent;  // 保存完整消息
-                                break;
-                            case 'error':
-                                // 接收错误消息并显示给用户
-                                const errorContent = parsed.content || parsed.message || parsed.data || '发生未知错误';
-                                addMessageToUI('error', errorContent);
-                                console.error('接收到错误消息:', errorContent);
-                                break;
-                            default:
-                                // 处理未知的消息类型
-                                console.warn('未知的消息类型 (Multi-Agent 模式):', parsed.type, parsed);
-                                break;
+                        // 处理后端实际返回的格式
+                        if (parsed.error) {
+                            // 处理错误
+                            addMessageToUI('error', parsed.error);
+                            console.error('接收到错误消息:', parsed.error);
+                            return;
                         }
+                        
+                        if (parsed.finished) {
+                            // 流式传输完成
+                            if (aiCompleteMessage.trim()) {
+                                conversationHistory.addMessage('ai', aiCompleteMessage.trim());
+                                console.log('AI回复完成，已保存到历史记录');
+                            }
+                            return;
+                        }
+                        
+                        if (parsed.delta) {
+                            // 处理增量内容
+                            if (!aiMessageElement) {
+                                // 第一次接收内容时创建AI消息元素
+                                aiMessageElement = addMessageToUI('ai', '', false);
+                                aiCompleteMessage = '';
+                                console.log('AI开始回复');
+                            }
+                            
+                            // 追加内容到消息元素和完整消息
+                            aiMessageElement.textContent += parsed.delta;
+                            aiCompleteMessage += parsed.delta;
+                        }
+                        
                     } catch (parseError) {
                         // JSON解析错误处理
-                        console.error('解析SSE数据失败:', parseError);
+                        console.error('解析SSE数据失败:', parseError, '原始数据:', data);
                     }
                 }
             }
         }
     } finally {
-        // 确保释放流读取器的锁定，避免资源泄漏
+        // 确保释放流读取器的锁定
         reader.releaseLock();
     }
 }
@@ -418,7 +374,20 @@ function addMessageToUI(type, content, addToHistory = true) {
  * 配置marked.js和highlight.js的选项
  */
 function initializeMarkdownRenderer() {
-    // 配置marked.js选项
+    // 检查marked和hljs是否已加载
+    if (typeof marked === 'undefined') {
+        console.error('marked.js未加载');
+        return;
+    }
+    if (typeof hljs === 'undefined') {
+        console.error('highlight.js未加载');
+        return;
+    }
+    
+    // 初始化highlight.js
+    hljs.highlightAll();
+    
+    // 配置marked.js选项（适配最新版本）
     marked.setOptions({
         highlight: function(code, lang) {
             // 如果指定了语言且highlight.js支持，则进行代码高亮
@@ -427,6 +396,7 @@ function initializeMarkdownRenderer() {
                     return hljs.highlight(code, { language: lang }).value;
                 } catch (err) {
                     console.warn('代码高亮失败:', err);
+                    return hljs.highlightAuto(code).value;
                 }
             }
             // 否则进行自动检测高亮
@@ -441,8 +411,12 @@ function initializeMarkdownRenderer() {
         gfm: true,          // 启用GitHub风格的markdown
         tables: true,       // 支持表格
         sanitize: false,    // 不清理HTML（需要显示代码高亮）
-        smartypants: true   // 智能标点符号转换
+        smartypants: true,  // 智能标点符号转换
+        pedantic: false,    // 不使用严格模式
+        silent: false       // 不静默错误
     });
+    
+    console.log('Markdown渲染器初始化完成');
 }
 
 /**
@@ -452,7 +426,18 @@ function initializeMarkdownRenderer() {
  * @returns {string} 格式化后的HTML内容
  */
 function formatMessageContent(content) {
+    // 检查内容是否为空
+    if (!content || typeof content !== 'string') {
+        return '';
+    }
+    
     try {
+        // 检查marked是否可用
+        if (typeof marked === 'undefined') {
+            console.warn('marked.js未加载，使用纯文本显示');
+            return content.replace(/\n/g, '<br>');
+        }
+        
         // 首先进行markdown渲染
         let htmlContent = marked.parse(content);
         
@@ -478,7 +463,8 @@ function formatMessageContent(content) {
                      .replace(/</g, '&lt;')
                      .replace(/>/g, '&gt;')
                      .replace(/"/g, '&quot;')
-                     .replace(/'/g, '&#39;');
+                     .replace(/'/g, '&#39;')
+                     .replace(/\n/g, '<br>');
     }
 }
 
@@ -688,18 +674,17 @@ function formatTime(timestamp) {
  */
 async function healthCheck() {
     try {
-        // 向后端健康检查端点发送请求
-        const response = await fetch(`${API_BASE_URL}/api/health`, {
+        // 修复：使用正确的端点 /health 而不是 /api/health
+        const response = await fetch(`${API_BASE_URL}/health`, {
             method: 'GET',
-            timeout: 3000  // 3秒超时
+            timeout: 3000
         });
         if (response.ok) {
-            console.log('后端服务正常');  // 服务正常日志
+            console.log('后端服务正常');
         } else {
-            console.log('后端服务异常，前端独立运行模式');  // 服务异常时的提示
+            console.log('后端服务异常，前端独立运行模式');
         }
     } catch (error) {
-        // 网络错误或服务不可达时，静默处理，不显示错误
         console.log('前端独立运行模式，后端服务未启动');
     }
 }

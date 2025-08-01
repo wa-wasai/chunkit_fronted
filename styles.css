@@ -733,6 +733,213 @@ body {
     transform: translateY(-1px);
 }
 
+
+/* 背景动画效果 */
+.falling-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.falling-item {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    opacity: 0.6;
+    animation: fall linear infinite;
+}
+
+.falling-item:nth-child(1) { animation-duration: 8s; animation-delay: 0s; left: 5%; }
+.falling-item:nth-child(2) { animation-duration: 12s; animation-delay: 6s; left: 25%; }
+.falling-item:nth-child(3) { animation-duration: 10s; animation-delay: 12s; left: 45%; }
+.falling-item:nth-child(4) { animation-duration: 14s; animation-delay: 3s; left: 65%; }
+.falling-item:nth-child(5) { animation-duration: 9s; animation-delay: 9s; left: 85%; }
+.falling-item:nth-child(6) { animation-duration: 11s; animation-delay: 15s; left: 15%; }
+.falling-item:nth-child(7) { animation-duration: 13s; animation-delay: 1.5s; left: 35%; }
+.falling-item:nth-child(8) { animation-duration: 15s; animation-delay: 7.5s; left: 55%; }
+.falling-item:nth-child(9) { animation-duration: 7s; animation-delay: 13.5s; left: 75%; }
+.falling-item:nth-child(10) { animation-duration: 16s; animation-delay: 4.5s; left: 95%; }
+
+@keyframes fall {
+    0% {
+        transform: translateY(-100px) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.6;
+    }
+    90% {
+        opacity: 0.6;
+    }
+    100% {
+        transform: translateY(calc(100vh + 100px)) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* 历史记录弹窗样式 */
+.history-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.history-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+}
+
+.history-modal-content {
+    position: relative;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #F7FFB2 0%, #60DEAB 100%);
+}
+
+.history-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+.history-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    margin: 8px 0;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.history-item:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.history-item-content {
+    flex: 1;
+}
+
+.history-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.history-time {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-bottom: 2px;
+}
+
+.history-preview {
+    font-size: 11px;
+    color: #95a5a6;
+}
+
+.history-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.load-btn, .delete-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.load-btn {
+    background: linear-gradient(135deg, #60DEAB, #3DA937);
+    color: white;
+}
+
+.load-btn:hover {
+    background: linear-gradient(135deg, #3DA937, #2c7a2c);
+    transform: translateY(-1px);
+}
+
+.delete-btn {
+    background: rgba(231, 76, 60, 0.1);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+.delete-btn:hover {
+    background: #e74c3c;
+    color: white;
+    transform: translateY(-1px);
+}
+
 /* ===== Markdown渲染样式 ===== */
 /* 标题样式 */
 .message-bubble h1,

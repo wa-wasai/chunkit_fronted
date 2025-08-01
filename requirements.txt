@@ -1,0 +1,37 @@
+# 核心依赖包
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+
+# 向量数据库和嵌入模型
+chromadb>=0.4.0
+sentence-transformers>=3.0.0
+
+# 大语言模型API
+dashscope>=1.20.0
+
+# 文本处理和分割
+langchain-text-splitters>=0.2.0
+tiktoken>=0.5.0
+
+# 文档处理
+PyPDF2>=3.0.0
+python-docx>=1.1.0
+
+# 机器学习框架
+torch>=2.0.0
+transformers>=4.35.0
+numpy>=1.24.0
+
+# 数据处理和工具
+tqdm>=4.65.0
+
+# Web相关（CORS支持）
+fastapi[all]>=0.104.0
+
+# 可选依赖（如果需要评估功能）
+# mteb>=1.0.0
+# datasets>=2.14.0
+# ir-datasets>=0.5.0
+# pytorch-lightning>=2.0.0
+# streamlit>=1.28.0
