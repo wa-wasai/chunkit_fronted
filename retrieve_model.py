@@ -1,14 +1,14 @@
-import chromadb
-from chromadb import PersistentClient  # 引入持久化客户端
 from sentence_transformers import SentenceTransformer
 from sentence_transformers import CrossEncoder
 import torch
+from faiss_store import FAISSVectorStore  # 引入FAISS向量存储
+
 local_model_path = "./cross-encoder-model"
 collection_name = "document_embeddings"
 cross_encoder = CrossEncoder(local_model_path)
 
-def retrieve_relevant_chunks(user_query, collection, top_k=15, final_k=5):
-    """检索相关文档片段的函数，修复了meta tensor问题"""
+def retrieve_relevant_chunks(user_query, vector_store, top_k=15, final_k=5):
+    """使用FAISS检索相关文档片段的函数，修复了meta tensor问题"""
     try:
         # 修复meta tensor问题的加载方式
         model = SentenceTransformer(
@@ -30,8 +30,8 @@ def retrieve_relevant_chunks(user_query, collection, top_k=15, final_k=5):
     # 生成查询向量
     query_embedding = model.encode(user_query, prompt_name="query").tolist()
 
-    # 从向量数据库检索
-    results = collection.query(
+    # 从FAISS向量存储检索
+    results = vector_store.query(
         query_embeddings=[query_embedding],
         n_results=top_k
     )
@@ -53,9 +53,8 @@ def retrieve_relevant_chunks(user_query, collection, top_k=15, final_k=5):
 # 使用示例
 if __name__ == "__main__":
     user_query = input("请输入你的问题: ")
-    client = PersistentClient(path="./chroma_db")
-    collections = client.get_collection(name=collection_name)
+    vector_store = FAISSVectorStore(index_path="./faiss_index", collection_name=collection_name)
     relevant_chunks = retrieve_relevant_chunks(
         user_query=user_query,
-        collection = collections
+        vector_store=vector_store
     )
