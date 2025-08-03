@@ -4,7 +4,8 @@ uvicorn>=0.24.0
 pydantic>=2.0.0
 
 # 向量数据库和嵌入模型
-chromadb>=0.4.0
+chromadb>=0.4.0  # 保留用于数据迁移
+faiss-cpu>=1.11.0  # 新增FAISS向量库
 sentence-transformers>=3.0.0
 
 # 大语言模型API
