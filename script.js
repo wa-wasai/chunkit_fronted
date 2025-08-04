@@ -272,9 +272,14 @@ async function streamChatResponse(message) {
                                 console.log('AI开始回复');
                             }
                             
-                            // 追加内容到消息元素和完整消息
-                            aiMessageElement.textContent += parsed.delta;
+                            // 追加内容到完整消息
                             aiCompleteMessage += parsed.delta;
+                            
+                            // 实时渲染markdown内容（修复的关键部分）
+                            aiMessageElement.innerHTML = formatMessageContent(aiCompleteMessage);
+                            
+                            // 滚动到最新内容
+                            aiMessageElement.scrollIntoView({ behavior: 'smooth' });
                         }
                         
                     } catch (parseError) {

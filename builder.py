@@ -1,11 +1,11 @@
 from textsplitters import RecursiveCharacterTextSplitter
 import tiktoken
-import chromadb
 import numpy as np
 from sentence_transformers import SentenceTransformer  # 需确保transformers>=4.51.0和sentence-transformers>=2.7.0
 import os  # 新增：用于文件路径处理
 import PyPDF2  # 处理PDF
 from docx import Document  # 处理Word
+from faiss_store import FAISSVectorStore  # 引入FAISS向量存储
 
 def read_file(filename: str) -> str:
     """读取文件内容，支持多种编码格式"""
@@ -93,34 +93,25 @@ def split_document(filename: str) -> list[str]:
     return chunks
 
 
-def init_chromadb(collection_name: str = "document_embeddings", reset: bool = False):
-    """初始化 Chroma 数据库，支持重置集合"""
+def init_faiss_store(collection_name: str = "document_embeddings", reset: bool = False):
+    """初始化 FAISS 向量存储，支持重置索引"""
     try:
-        client = chromadb.PersistentClient(path="./chroma_db")
-
-        # 如果需要重置集合，先删除再创建
-        if reset:
-            if collection_name in [col.name for col in client.list_collections()]:
-                client.delete_collection(name=collection_name)
-                print(f"已删除旧集合 {collection_name}")
-
-        # 创建或获取集合，明确元数据
-        collection = client.get_or_create_collection(
-            name=collection_name,
-            metadata={
-                "description": "Qwen3-Embedding 文档向量存储",
-                "embedding_dimension": 1024  # Qwen3-0.6B的固定维度
-            }
+        # 创建FAISS向量存储
+        vector_store = FAISSVectorStore(
+            index_path="./faiss_index",
+            collection_name=collection_name,
+            dimension=1024,  # Qwen3-0.6B的固定维度
+            reset=reset
         )
-
-        print(f"初始化集合成功，当前集合文档数量: {collection.count()}")
-        return collection
+        
+        print(f"初始化FAISS向量存储成功，当前文档数量: {vector_store.count()}")
+        return vector_store
     except Exception as e:
-        raise Exception(f"初始化ChromaDB失败: {str(e)}")
+        raise Exception(f"初始化FAISS向量存储失败: {str(e)}")
 
 
-def embed_and_store_chunks(chunks: list[str], collection):
-    """将 chunks 向量化并存储到 Chroma，增加严格验证"""
+def embed_and_store_chunks(chunks: list[str], vector_store):
+    """将 chunks 向量化并存储到 FAISS，增加严格验证"""
     # 加载 Qwen3-Embedding 模型 - 修复设备映射问题
     import torch
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -136,14 +127,25 @@ def embed_and_store_chunks(chunks: list[str], collection):
     embeddings = model.encode(chunks)
     print(f"生成嵌入向量完成，共 {len(embeddings)} 个向量")
 
-    # 逐个插入 chunk 到集合中
+    # 准备批量添加数据
+    documents = []
+    embeddings_list = []
+    ids = []
+    
+    # 收集所有数据
     for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-        collection.add(
-            documents=[chunk],  # 文档内容（列表格式）
-            embeddings=[embedding.tolist()],  # 向量转换为列表（单个向量需用列表包裹）
-            ids=[f"chunk_{i}"]  # 唯一ID（列表格式）
-        )
-    print(f"成功存储 {len(chunks)} 个文档片段到 Chroma 数据库")
+        documents.append(chunk)
+        embeddings_list.append(embedding.tolist())
+        ids.append(f"chunk_{i}")
+    
+    # 批量添加到FAISS索引
+    vector_store.add(
+        documents=documents,
+        embeddings=embeddings_list,
+        ids=ids
+    )
+    
+    print(f"成功存储 {len(chunks)} 个文档片段到 FAISS 向量存储")
 
 
 # 新增：处理文件夹中所有文件的函数
@@ -152,8 +154,8 @@ def process_folder(folder_name: str, collection_name: str = "document_embeddings
     if not os.path.isdir(folder_name):
         raise NotADirectoryError(f"文件夹 {folder_name} 不存在或不是一个有效的文件夹")
 
-    # 初始化数据库
-    collection = init_chromadb(collection_name, reset)
+    # 初始化FAISS向量存储
+    vector_store = init_faiss_store(collection_name, reset)
 
     # 获取文件夹中所有文件
     all_files = [f for f in os.listdir(folder_name)
@@ -190,14 +192,24 @@ def process_folder(folder_name: str, collection_name: str = "document_embeddings
             # 生成嵌入向量
             embeddings = model.encode(chunks)
 
-            # 存储到数据库（使用文件索引确保ID唯一性）
+            # 准备批量添加数据
+            documents = []
+            embeddings_list = []
+            ids = []
+            
+            # 收集所有数据
             for chunk_idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
                 unique_id = f"file_{file_idx}_chunk_{chunk_idx}"
-                collection.add(
-                    documents=[chunk],
-                    embeddings=[embedding.tolist()],
-                    ids=[unique_id]
-                )
+                documents.append(chunk)
+                embeddings_list.append(embedding.tolist())
+                ids.append(unique_id)
+            
+            # 批量添加到FAISS索引
+            vector_store.add(
+                documents=documents,
+                embeddings=embeddings_list,
+                ids=ids
+            )
 
             print(f"文件 {filename} 处理完成，新增 {len(chunks)} 个片段")
 
@@ -212,10 +224,10 @@ def debug():
     try:
         # 分割文档
         chunks = split_document("debug.txt")
-        # 初始化数据库（测试时使用reset=True清除旧数据）
-        collection = init_chromadb(reset=True)
+        # 初始化FAISS向量存储（测试时使用reset=True清除旧数据）
+        vector_store = init_faiss_store(reset=True)
         # 嵌入并存储
-        embed_and_store_chunks(chunks, collection)
+        embed_and_store_chunks(chunks, vector_store)
     except Exception as e:
         print(f"调试过程出错: {str(e)}")
 
