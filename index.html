@@ -8,9 +8,15 @@
     <!-- 设置字符编码为UTF-8，支持中文显示 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 设置视口，使页面在移动设备上正确显示 -->
+    
+    <!-- 添加缓存控制meta标签 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>知识生活问答 - 智能助手</title>
     <!-- 设置浏览器标签页标题 -->
-    <link rel="stylesheet" href="styles.css?v=1.7">
+    <link rel="stylesheet" href="styles.css?v=1.8">
     <!-- 引入外部CSS样式文件，添加版本参数强制刷新缓存 -->
     
     <!-- 引入marked.js库用于markdown渲染 -->
@@ -137,7 +143,7 @@
             </button>
             <!-- 发送消息按钮 -->
             <!-- 点击后发送用户输入的消息 -->
-            <button class="send-button" onclick="sendMessage()">
+            <button class="send-button">
                 <!-- SVG图标：发送箭头图标 -->
                 <svg class="send-icon" viewBox="0 0 24 24">
                     <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
@@ -148,12 +154,42 @@
 
     <!-- 引入JavaScript文件 -->
     <!-- 包含所有的交互逻辑和功能实现 -->
-    <script src="script.js"></script>
+    <script src="script.js?v=1.1" id="main-script"></script>
+    <script>
+        // 动态添加时间戳防止缓存
+        document.getElementById('main-script').src = 'script.js?t=' + Date.now();
+    </script>
+    <!-- 脚本加载错误处理和备用方案 -->
+    <script>
+        // 检查关键函数是否加载成功
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof createMessageLoadingBox === 'undefined') {
+                    console.warn('createMessageLoadingBox函数未定义，正在重新定义...');
+                    
+                    // 备用函数定义
+                    window.createMessageLoadingBox = function() {
+                        const loadingContainer = document.createElement('div');
+                        loadingContainer.className = 'message ai-message';
+                        loadingContainer.innerHTML = `
+                            <div class="message-content">
+                                <div class="loading-animation">
+                                    <div class="loading-dots">
+                                        <span></span><span></span><span></span>
+                                    </div>
+                                    <span class="loading-text">AI正在思考中...</span>
+                                </div>
+                            </div>
+                        `;
+                        return loadingContainer;
+                    };
+                    
+                    console.log('备用函数已定义，状态:', typeof createMessageLoadingBox);
+                }
+            }, 1000); // 延迟1秒检查
+        });
+    </script>
 </body>
 <!-- 页面主体内容结束 -->
 </html>
 <!-- HTML文档结束 -->
-<!-- 将CDN引用替换为本地文件 -->
-<script src="assets/js/marked.min.js"></script>
-<link rel="stylesheet" href="assets/css/github.min.css">
-<script src="assets/js/highlight.min.js"></script>

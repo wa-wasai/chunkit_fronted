@@ -1,7 +1,3 @@
-/* ===== JavaScript文件 - Multi-Agent问答平台 ===== */
-/* 这个文件包含了问答平台的所有交互逻辑和功能实现 */
-/* 包括消息发送、历史记录管理、UI更新、文件上传等功能 */
-
 /* ===== 全局变量定义 ===== */
 /* 用于存储应用程序的全局状态和配置 */
 let sessionId = null;                    // 当前会话ID，用于标识用户会话
@@ -170,12 +166,17 @@ async function sendMessage() {
     // 立即在界面上显示用户消息，提供即时反馈
     addMessageToUI('user', message);
     
+    // 立即创建带加载状态的AI消息容器并添加到UI
+    const messageElements = createAIMessageWithLoading();
+    
     try {
         // 调用多智能体流式API获取AI响应
-        await streamChatResponse(message);
+        await streamChatResponse(message, messageElements);
     } catch (error) {
         // 错误处理：记录错误并向用户显示友好的错误信息
         console.error('发送消息失败:', error);
+        // 移除加载框并显示错误
+        messageElements.messageDiv.remove();
         addMessageToUI('error', '抱歉，发送消息时出现错误，请稍后重试。');
     }
 }
@@ -184,8 +185,9 @@ async function sendMessage() {
  * 使用SSE流式接收AI响应
  * 通过Server-Sent Events (SSE) 技术实现流式响应
  * @param {string} message - 用户发送的消息内容
+ * @param {Object} messageElements - 已创建的加载框元素对象
  */
-async function streamChatResponse(message) {
+async function streamChatResponse(message, messageElements) {
     // 修复：使用正确的端点 /query 而不是 /api/chat/stream
     const endpoint = '/query';
     
@@ -194,108 +196,222 @@ async function streamChatResponse(message) {
         query: message  // 后端期望的字段名是 'query' 而不是 'message'
     };
     
-    // 发送POST请求到流式聊天API端点
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-    });
-    
-    // 检查HTTP响应状态
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    // 获取响应流的读取器和文本解码器
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
     let aiMessageElement = null;
     let aiCompleteMessage = '';
     
     try {
-        // 持续读取流式数据直到完成
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                // 流式传输完成，保存完整的AI回答到历史记录
-                if (aiCompleteMessage.trim()) {
-                    conversationHistory.addMessage('ai', aiCompleteMessage.trim());
-                    console.log('AI完整回答已保存到历史记录');
+        // 发送POST请求到流式聊天API端点
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        // 检查HTTP响应状态
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        // 获取响应流的读取器和文本解码器
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        try {
+            // 持续读取流式数据直到完成
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    // 流式传输完成，保存完整的AI回答到历史记录
+                    if (aiCompleteMessage.trim()) {
+                        conversationHistory.addMessage('ai', aiCompleteMessage.trim());
+                        console.log('AI完整回答已保存到历史记录');
+                    }
+                    break;
                 }
-                break;
-            }
-            
-            // 将字节数据解码为文本
-            const chunk = decoder.decode(value);
-            // 按行分割数据（SSE格式是按行传输的）
-            const lines = chunk.split('\n');
-            
-            // 处理每一行数据
-            for (const line of lines) {
-                // 检查是否是SSE数据行（以'data: '开头）
-                if (line.startsWith('data: ')) {
-                    // 提取实际的数据内容（去掉'data: '前缀）
-                    const data = line.slice(6).trim();
-                    
-                    // 跳过空行
-                    if (!data) continue;
-                    
-                    try {
-                        // 解析JSON数据
-                        const parsed = JSON.parse(data);
+                
+                // 将字节数据解码为文本
+                const chunk = decoder.decode(value);
+                // 按行分割数据（SSE格式是按行传输的）
+                const lines = chunk.split('\n');
+                
+                // 处理每一行数据
+                for (const line of lines) {
+                    // 检查是否是SSE数据行（以'data: '开头）
+                    if (line.startsWith('data: ')) {
+                        // 提取实际的数据内容（去掉'data: '前缀）
+                        const data = line.slice(6).trim();
                         
-                        // 处理后端实际返回的格式
-                        if (parsed.error) {
-                            // 处理错误
-                            addMessageToUI('error', parsed.error);
-                            console.error('接收到错误消息:', parsed.error);
-                            return;
-                        }
+                        // 跳过空行
+                        if (!data) continue;
                         
-                        if (parsed.finished) {
-                            // 流式传输完成
-                            if (aiCompleteMessage.trim()) {
-                                conversationHistory.addMessage('ai', aiCompleteMessage.trim());
-                                console.log('AI回复完成，已保存到历史记录');
-                            }
-                            return;
-                        }
-                        
-                        if (parsed.delta) {
-                            // 处理增量内容
-                            if (!aiMessageElement) {
-                                // 第一次接收内容时创建AI消息元素
-                                aiMessageElement = addMessageToUI('ai', '', false);
-                                aiCompleteMessage = '';
-                                console.log('AI开始回复');
+                        try {
+                            // 解析JSON数据
+                            const parsed = JSON.parse(data);
+                            
+                            // 处理后端实际返回的格式
+                            if (parsed.error) {
+                                // 处理错误
+                                addMessageToUI('error', parsed.error);
+                                console.error('接收到错误消息:', parsed.error);
+                                return;
                             }
                             
-                            // 追加内容到完整消息
-                            aiCompleteMessage += parsed.delta;
+                            if (parsed.finished) {
+                                // 流式传输完成
+                                if (aiCompleteMessage.trim()) {
+                                    conversationHistory.addMessage('ai', aiCompleteMessage.trim());
+                                    console.log('AI回复完成，已保存到历史记录');
+                                }
+                                return;
+                            }
                             
-                            // 实时渲染markdown内容（修复的关键部分）
-                            aiMessageElement.innerHTML = formatMessageContent(aiCompleteMessage);
+                            if (parsed.delta) {
+                                // 处理增量内容
+                                if (!aiMessageElement) {
+                                    // 第一次接收内容时，将加载框替换为实际内容
+                                    aiMessageElement = replaceLoadingWithContent(messageElements, '');
+                                    aiCompleteMessage = '';
+                                    console.log('AI开始回复，加载框已切换为内容');
+                                }
+                                
+                                // 追加内容到完整消息
+                                aiCompleteMessage += parsed.delta;
+                                
+                                // 实时渲染markdown内容（修复的关键部分）
+                                aiMessageElement.innerHTML = formatMessageContent(aiCompleteMessage);
+                                
+                                // 滚动到最新内容
+                                aiMessageElement.scrollIntoView({ behavior: 'smooth' });
+                            }
                             
-                            // 滚动到最新内容
-                            aiMessageElement.scrollIntoView({ behavior: 'smooth' });
+                        } catch (parseError) {
+                            // JSON解析错误处理
+                            console.error('解析SSE数据失败:', parseError, '原始数据:', data);
                         }
-                        
-                    } catch (parseError) {
-                        // JSON解析错误处理
-                        console.error('解析SSE数据失败:', parseError, '原始数据:', data);
                     }
                 }
             }
+        } finally {
+            // 确保释放流读取器的锁定
+            reader.releaseLock();
         }
-    } finally {
-        // 确保释放流读取器的锁定
-        reader.releaseLock();
+    } catch (error) {
+        // 重新抛出错误，让sendMessage函数处理
+        throw error;
     }
 }
 
 /* ===== UI界面更新函数 ===== */
+
+/**
+ * 创建消息加载框
+ * 生成带有动态加载动画的消息容器，用于显示AI正在生成回复的状态
+ * @returns {HTMLElement} 返回加载框的DOM元素
+ */
+function createMessageLoadingBox() {
+    // 创建加载框容器
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message-loading';
+    
+    // 创建加载动画容器
+    const animationContainer = document.createElement('div');
+    animationContainer.className = 'loading-animation';
+    
+    // 创建旋转图标
+    const spinner = document.createElement('div');
+    spinner.className = 'loading-spinner';
+    
+    // 创建加载文字和省略号动画
+    const loadingText = document.createElement('div');
+    loadingText.className = 'loading-text';
+    loadingText.innerHTML = `
+        正在输入中
+        <span class="loading-dots">
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+        </span>
+    `;
+    
+    // 创建进度条
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'loading-progress';
+    const progressBar = document.createElement('div');
+    progressBar.className = 'loading-progress-bar';
+    progressContainer.appendChild(progressBar);
+    
+    // 组装加载框
+    animationContainer.appendChild(spinner);
+    animationContainer.appendChild(loadingText);
+    animationContainer.appendChild(progressContainer);
+    loadingDiv.appendChild(animationContainer);
+    
+    return loadingDiv;
+}
+
+/**
+ * 创建带加载状态的AI消息容器
+ * 立即显示加载框，为后续的流式内容更新做准备
+ * @returns {Object} 返回包含消息容器和加载框的对象
+ */
+function createAIMessageWithLoading() {
+    // 获取消息容器
+    const container = document.getElementById('qaContainer');
+    
+    // 创建消息div
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message ai';
+    
+    // 构建AI消息的基本结构
+    messageDiv.innerHTML = `
+        <div class="message-avatar ai">AI</div>
+        <div class="message-content">
+            <div class="message-info">Chunkit</div>
+        </div>
+    `;
+    
+    // 创建加载框并添加到消息内容中
+    const loadingBox = createMessageLoadingBox();
+    messageDiv.querySelector('.message-content').appendChild(loadingBox);
+    
+    // 添加到容器并滚动到视图
+    container.appendChild(messageDiv);
+    messageDiv.scrollIntoView({ behavior: 'smooth' });
+    
+    return {
+        messageDiv: messageDiv,
+        loadingBox: loadingBox,
+        messageContent: messageDiv.querySelector('.message-content')
+    };
+}
+
+/**
+ * 将加载框替换为实际的回复内容
+ * 当AI回复内容准备就绪时，平滑切换到实际内容
+ * @param {Object} messageElements - 包含消息元素的对象
+ * @param {string} content - 要显示的内容
+ * @returns {HTMLElement} 返回新创建的消息气泡元素
+ */
+function replaceLoadingWithContent(messageElements, content = '') {
+    const { loadingBox, messageContent } = messageElements;
+    
+    // 移除加载框
+    if (loadingBox && loadingBox.parentNode) {
+        loadingBox.remove();
+    }
+    
+    // 创建实际的消息气泡
+    const answerDiv = document.createElement('div');
+    answerDiv.className = 'message-bubble';
+    answerDiv.innerHTML = formatMessageContent(content);
+    
+    // 添加到消息内容中
+    messageContent.appendChild(answerDiv);
+    
+    return answerDiv;
+}
 
 /**
  * 添加消息到UI界面（聊天气泡样式）
@@ -355,7 +471,7 @@ function addMessageToUI(type, content, addToHistory = true) {
     } else if (type === 'error') {
         // 错误消息：特殊样式，红色主题
         messageDiv.innerHTML = `
-            <div class="message-avatar ai">⚠️</div>
+            <div class="message-avatar ai">!</div>
             <div class="message-content">
                 <div class="message-info">系统提示</div>
                 <div class="message-bubble" style="background: #ffebee; color: #c62828; border-color: #ef5350;">${content}</div>
@@ -450,7 +566,7 @@ function formatMessageContent(content) {
         // 匹配"文件名.扩展名 数字-数字"的模式，添加文件图标和特殊样式
         htmlContent = htmlContent.replace(
             /(\w+\.\w+)\s+(\d+-\d+)/g,
-            '<span class="file-reference"><span class="file-icon">📄</span>$1 $2</span>'
+            '<span class="file-reference"><span class="file-icon">[文件]</span>$1 $2</span>'
         );
         
         // 处理关键词高亮格式 (例如: # styles.css)

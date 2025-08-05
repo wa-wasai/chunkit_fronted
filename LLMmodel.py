@@ -33,14 +33,14 @@ class LLM_model:
         """
         # 将换行符提取到变量中，避免f-string中的反斜杠问题
         separator = "\n\n"
-        prompt = f"""你是一位知识助手，请根据用户的问题和下列片段生成准确的回答。
+        prompt = f"""你是一位知识助手，请根据用户的问题和下列片段生成准确的回答。请不要在回答中使用任何表情符号。
 
 用户问题: {query}
 
 相关片段:
 {separator.join(list)}
 
-请基于上述内容作答，不要编造信息。"""
+请基于上述内容作答，不要编造信息，不要使用表情符号。"""
         resp = Application.call(
             api_key=os.getenv("DASHSCOPE_API_KEY"),
             app_id=APP_ID,
@@ -64,14 +64,14 @@ class LLM_model:
         """
         # 将换行符提取到变量中，避免f-string中的反斜杠问题
         separator = "\n\n"
-        prompt = f"""你是一位知识助手，请根据用户的问题和可能的相关背景知识。
+        prompt = f"""你是一位知识助手，请根据用户的问题和可能的相关背景知识。请不要在回答中使用任何表情符号。
 
 用户问题: {query}
 
 背景知识:
 {separator.join(list)}
 
-若用户问题与背景知识无关，则用通用知识解决问题
+若用户问题与背景知识无关，则用通用知识解决问题。请不要使用表情符号。
 """
 
         prev = ""  # 记录上一次完整内容，用于计算增量
