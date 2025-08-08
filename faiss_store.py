@@ -158,3 +158,19 @@ class FAISSVectorStore:
         self._create_new_index()
         self.save()
         print("FAISS索引已重置")
+
+        # faiss_store.py（如果没有 search 方法，就加上）
+        class FAISSVectorStore:
+            ...
+
+            def search(self, query_vector, top_k=5):
+                try:
+                    distances, indices = self.index.search(np.array([query_vector]), top_k)
+                    results = []
+                    for idx in indices[0]:
+                        if 0 <= idx < len(self.texts):
+                            results.append(self.texts[idx])
+                    return results
+                except Exception as e:
+                    print(f"❌ FAISS 搜索出错：{e}")
+                    return []

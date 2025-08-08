@@ -3,6 +3,24 @@
 let sessionId = null;                    // 当前会话ID，用于标识用户会话
 const API_BASE_URL = 'http://localhost:8000';  // 后端API的基础URL地址
 
+/* ===== 意图头像映射配置 ===== */
+const INTENT_AVATAR_MAPPING = {
+    "心理助手": "assets/images/007-gin tonic.svg",
+    "健身饮食助手": "assets/images/014-mojito.svg", 
+    "校园知识问答": "assets/images/042-milkshake.svg",
+    "论文助手": "assets/images/044-whiskey sour.svg",
+    "其他": "assets/images/050-lemon juice.svg"
+};
+
+/**
+ * 根据意图获取对应的头像路径
+ * @param {string} intent - 意图类型
+ * @returns {string} 头像图片路径
+ */
+function getAvatarByIntent(intent) {
+    return INTENT_AVATAR_MAPPING[intent] || INTENT_AVATAR_MAPPING["其他"];
+}
+
 /**
  * 历史对话记录管理类
  * 负责管理用户的历史对话记录，包括保存、获取、删除等功能
@@ -148,11 +166,205 @@ const conversationHistory = new ConversationHistory();
 /* ===== 消息发送和处理函数 ===== */
 
 /**
- * 发送消息到后端API
+ * 发送消息并处理意图识别
+ * 修改现有的sendMessage函数以支持意图识别
+ */
+async function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (!message) return;
+    
+    // 清空输入框
+    messageInput.value = '';
+    
+    // 添加用户消息到UI
+    addMessageToUI('user', message);
+    
+    try {
+        // 调用带意图识别的API
+        const response = await fetch(`${API_BASE_URL}/query_with_intent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                query: message,
+                stream: true
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // 处理流式响应
+        await handleIntentStreamResponse(response);
+        
+    } catch (error) {
+        console.error('发送消息失败:', error);
+        // 使用默认头像显示错误消息
+        const defaultAvatar = INTENT_AVATAR_MAPPING["其他"];
+        const messageElements = createAIMessageWithCustomAvatar(defaultAvatar);
+        document.getElementById('qaContainer').appendChild(messageElements.container);
+        
+        replaceLoadingWithContent(messageElements, `抱歉，发生了错误：${error.message}`);
+    }
+}
+
+/**
+ * 处理意图识别的流式响应
+ * 创建聊天式消息框并实时更新AI回复内容
+ * @param {Response} response - 流式响应对象
+ */
+async function handleIntentStreamResponse(response) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    
+    let messageDiv = null;
+    let answerDiv = null;
+    let currentIntent = null;
+    let fullContent = '';
+    
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        
+                        if (data.type === 'intent') {
+                            // 收到意图信息，创建聊天式消息框
+                            currentIntent = data.intent;
+                            const avatarPath = getAvatarByIntent(data.intent);
+                            
+                            // 创建聊天消息容器
+                            const container = document.getElementById('qaContainer');
+                            messageDiv = document.createElement('div');
+                            messageDiv.className = 'chat-message ai';
+                            
+                            // 创建AI消息结构
+                            messageDiv.innerHTML = `
+                                <div class="message-avatar ai-avatar" style="background-image: url('${avatarPath}'); background-size: cover; background-position: center;"></div>
+                                <div class="message-content">
+                                    <div class="message-info">Chunkit</div>
+                                </div>
+                            `;
+                            
+                            // 创建加载进度条
+                            const loadingDiv = document.createElement('div');
+                            loadingDiv.className = 'loading-animation';
+                            const progressContainer = document.createElement('div');
+                            progressContainer.className = 'loading-progress';
+                            const progressBar = document.createElement('div');
+                            progressBar.className = 'loading-progress-bar';
+                            progressContainer.appendChild(progressBar);
+                            loadingDiv.appendChild(progressContainer);
+                            
+                            messageDiv.querySelector('.message-content').appendChild(loadingDiv);
+                            container.appendChild(messageDiv);
+                            
+                        } else if (data.type === 'content' && messageDiv) {
+                            // 收到内容增量，累积内容
+                            fullContent += data.delta;
+                            
+                            // 如果还在显示加载动画，创建答案框并替换加载动画
+                            if (!answerDiv) {
+                                const loadingDiv = messageDiv.querySelector('.loading-animation');
+                                if (loadingDiv) {
+                                    loadingDiv.remove();
+                                }
+                                
+                                // 创建答案消息框
+                                answerDiv = document.createElement('div');
+                                answerDiv.className = 'message-bubble';
+                                messageDiv.querySelector('.message-content').appendChild(answerDiv);
+                            }
+                            
+                            // 实时更新消息内容
+                            answerDiv.innerHTML = formatMessageContent(fullContent);
+                            
+                        } else if (data.type === 'finished') {
+                            // 响应完成
+                            if (fullContent) {
+                                // 添加到历史记录
+                                conversationHistory.addMessage('ai', fullContent);
+                            }
+                            break;
+                            
+                        } else if (data.type === 'error') {
+                            // 处理错误
+                            if (!messageDiv) {
+                                const defaultAvatar = INTENT_AVATAR_MAPPING["其他"];
+                                const container = document.getElementById('qaContainer');
+                                messageDiv = document.createElement('div');
+                                messageDiv.className = 'chat-message ai';
+                                messageDiv.innerHTML = `
+                                    <div class="message-avatar ai-avatar" style="background-image: url('${defaultAvatar}'); background-size: cover; background-position: center;"></div>
+                                    <div class="message-content">
+                                        <div class="message-info">Chunkit</div>
+                                    </div>
+                                `;
+                                container.appendChild(messageDiv);
+                            }
+                            
+                            // 移除加载动画并显示错误信息
+                            const loadingDiv = messageDiv.querySelector('.loading-animation');
+                            if (loadingDiv) {
+                                loadingDiv.remove();
+                            }
+                            
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'message-bubble';
+                            errorDiv.style.cssText = 'background: #ffebee; color: #c62828; border-color: #ef5350;';
+                            errorDiv.textContent = `抱歉，发生了错误：${data.error}`;
+                            messageDiv.querySelector('.message-content').appendChild(errorDiv);
+                            break;
+                        }
+                        
+                    } catch (parseError) {
+                        console.error('解析响应数据失败:', parseError);
+                    }
+                }
+            }
+        }
+        
+    } catch (error) {
+        console.error('处理流式响应失败:', error);
+        if (messageDiv && !answerDiv) {
+            const loadingDiv = messageDiv.querySelector('.loading-animation');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message-bubble';
+            errorDiv.style.cssText = 'background: #ffebee; color: #c62828; border-color: #ef5350;';
+            errorDiv.textContent = `处理响应时发生错误：${error.message}`;
+            messageDiv.querySelector('.message-content').appendChild(errorDiv);
+        }
+    } finally {
+        reader.releaseLock();
+        
+        // 滚动到底部
+        const qaContainer = document.getElementById('qaContainer');
+        qaContainer.scrollTop = qaContainer.scrollHeight;
+    }
+}
+
+/**
+ * 发送消息到后端API（原始版本，保留作为备用）
  * 主要的消息发送函数，处理用户输入并调用后端API
  * 包括输入验证、UI更新、错误处理等功能
  */
-async function sendMessage() {
+async function sendMessageOriginal() {
     // 获取输入框元素和用户输入的消息
     const input = document.getElementById('messageInput');
     const message = input.value.trim();  // 去除首尾空格
@@ -352,6 +564,49 @@ function createMessageLoadingBox() {
 }
 
 /**
+ * 创建带有指定头像的AI消息容器
+ * @param {string} avatarPath - 头像图片路径
+ * @returns {Object} 包含消息容器和内容元素的对象
+ */
+function createAIMessageWithCustomAvatar(avatarPath) {
+    const messageContainer = document.createElement('div');
+    messageContainer.className = 'message ai-message';
+    
+    // 创建头像元素
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar ai-avatar';
+    avatar.style.backgroundImage = `url('${avatarPath}')`;
+    avatar.style.backgroundSize = 'cover';
+    avatar.style.backgroundPosition = 'center';
+    
+    // 创建消息内容容器
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    // 创建加载动画 - 只显示进度条，不显示文字
+    const loadingAnimation = document.createElement('div');
+    loadingAnimation.className = 'loading-animation';
+    
+    // 创建进度条
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'loading-progress';
+    const progressBar = document.createElement('div');
+    progressBar.className = 'loading-progress-bar';
+    progressContainer.appendChild(progressBar);
+    
+    loadingAnimation.appendChild(progressContainer);
+    messageContent.appendChild(loadingAnimation);
+    messageContainer.appendChild(avatar);
+    messageContainer.appendChild(messageContent);
+    
+    return {
+        container: messageContainer,
+        content: messageContent,
+        loading: loadingAnimation
+    };
+}
+
+/**
  * 创建带加载状态的AI消息容器
  * 立即显示加载框，为后续的流式内容更新做准备
  * @returns {Object} 返回包含消息容器和加载框的对象
@@ -395,20 +650,22 @@ function createAIMessageWithLoading() {
  * @returns {HTMLElement} 返回新创建的消息气泡元素
  */
 function replaceLoadingWithContent(messageElements, content = '') {
-    const { loadingBox, messageContent } = messageElements;
+    // 兼容新旧两种消息元素结构
+    const loadingElement = messageElements.loading || messageElements.loadingBox;
+    const contentElement = messageElements.content || messageElements.messageContent;
     
     // 移除加载框
-    if (loadingBox && loadingBox.parentNode) {
-        loadingBox.remove();
+    if (loadingElement && loadingElement.parentNode) {
+        loadingElement.remove();
     }
     
     // 创建实际的消息气泡
     const answerDiv = document.createElement('div');
-    answerDiv.className = 'message-bubble';
+    answerDiv.className = messageElements.content ? 'ai-response' : 'message-bubble';
     answerDiv.innerHTML = formatMessageContent(content);
     
     // 添加到消息内容中
-    messageContent.appendChild(answerDiv);
+    contentElement.appendChild(answerDiv);
     
     return answerDiv;
 }

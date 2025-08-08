@@ -467,6 +467,37 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* AI消息头像样式 */
+.ai-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border: 2px solid #4a9eff;
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.ai-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(74, 158, 255, 0.4);
+}
+
+/* 确保消息容器正确对齐 */
+.message.ai-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.message.ai-message .message-content {
+    flex: 1;
+    max-width: calc(100% - 52px); /* 为头像留出空间 */
+}
+
 /* 文件引用样式 */
 .file-reference {
     display: inline-flex;
